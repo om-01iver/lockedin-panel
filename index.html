@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.cow.fi https://ethereum-rpc.publicnode.com https://eth.drpc.org http://127.0.0.1:8546; base-uri 'none'; form-action 'none'"
+    />
+    <title>LockedIn</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div>
+        <h1>LockedIn</h1>
+        <p class="sub">Personal vault control panel. Nothing here holds keys: every action is signed in your wallet.</p>
+      </div>
+      <div class="connect">
+        <span id="account" class="muted">Not connected</span>
+        <button id="connectBtn" type="button">Connect wallet</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="card">
+        <label for="vaultInput">Vault address</label>
+        <div class="row">
+          <input id="vaultInput" placeholder="0x…" spellcheck="false" autocomplete="off" />
+          <button id="loadBtn" type="button">Load</button>
+        </div>
+        <p class="muted small">Remembered in this browser only.</p>
+      </section>
+
+      <div id="warnings"></div>
+
+      <section class="card" id="statusCard" hidden>
+        <h2>Status</h2>
+        <dl id="status" class="grid"></dl>
+      </section>
+
+      <section class="card" id="assetsCard" hidden>
+        <h2>Assets</h2>
+        <div class="table-wrap"><table id="assets"></table></div>
+      </section>
+
+      <section class="card" id="schedulesCard" hidden>
+        <h2>Schedules</h2>
+        <div class="table-wrap"><table id="schedules"></table></div>
+      </section>
+
+      <section class="card" id="actionsCard" hidden>
+        <h2>Actions <span class="muted small">(owner only)</span></h2>
+
+        <details open>
+          <summary>Deposit</summary>
+          <form id="depositForm" class="form">
+            <label>Token <select name="token"></select></label>
+            <label>Amount <input name="amount" inputmode="decimal" required /></label>
+            <label>Lock until
+              <select name="lockPreset">
+                <option value="0">Keep current lock</option>
+                <option value="30">30 days from now</option>
+                <option value="90" selected>90 days from now</option>
+                <option value="365">1 year from now</option>
+                <option value="custom">Custom date…</option>
+              </select>
+            </label>
+            <label class="custom-date" hidden>Date <input name="lockDate" type="date" /></label>
+            <button type="submit">Approve &amp; deposit</button>
+          </form>
+        </details>
+
+        <details>
+          <summary>New schedule</summary>
+          <form id="scheduleForm" class="form">
+            <label>Sell <select name="sell"></select></label>
+            <label>Buy <select name="buy"></select></label>
+            <label>Amount per order <input name="amount" inputmode="decimal" required /></label>
+            <label>Every (days) <input name="intervalDays" type="number" min="1" value="7" required /></label>
+            <label>Start <input name="start" type="datetime-local" /> <span class="muted small">blank = now</span></label>
+            <label>End <input name="end" type="datetime-local" /> <span class="muted small">blank = never</span></label>
+            <label>Keep bought tokens locked at least (days) <input name="outLockDays" type="number" min="0" value="0" /></label>
+            <label>Max slippage (%) <input name="slippage" inputmode="decimal" value="1" required /></label>
+            <button type="submit">Create schedule</button>
+          </form>
+        </details>
+
+        <details>
+          <summary>Extend a lock</summary>
+          <form id="lockForm" class="form">
+            <label>Token <select name="token"></select></label>
+            <label>New unlock date <input name="date" type="date" required /></label>
+            <button type="submit">Extend lock</button>
+          </form>
+        </details>
+
+        <details>
+          <summary>Withdraw (unlocked only, to payout address)</summary>
+          <form id="withdrawForm" class="form">
+            <label>Token <select name="token"></select></label>
+            <label>Amount <input name="amount" inputmode="decimal" required /></label>
+            <button type="submit">Withdraw</button>
+          </form>
+        </details>
+
+        <details>
+          <summary class="danger-text">Emergency exit</summary>
+          <p class="small">Requesting an exit stops all schedules and cancels open orders. After the exit delay,
+            everything can be sent to the payout address regardless of locks. You can cancel before then.</p>
+          <div class="row wrap">
+            <button id="requestExitBtn" type="button" class="danger">Request exit…</button>
+            <button id="cancelExitBtn" type="button">Cancel exit</button>
+            <button id="exitWithdrawBtn" type="button">Send everything to payout</button>
+          </div>
+        </details>
+
+        <details>
+          <summary>Payout address &amp; ownership</summary>
+          <form id="payoutForm" class="form">
+            <label>New payout address <input name="addr" spellcheck="false" required /></label>
+            <button type="submit">Propose (takes the exit delay)</button>
+          </form>
+          <div class="row wrap">
+            <button id="applyPayoutBtn" type="button">Apply pending payout</button>
+            <button id="cancelPayoutBtn" type="button">Cancel pending payout</button>
+          </div>
+          <form id="ownerForm" class="form">
+            <label>New owner <input name="addr" spellcheck="false" required /></label>
+            <button type="submit">Propose (3-day delay)</button>
+          </form>
+          <form id="executorForm" class="form">
+            <label>Keeper address (who may place orders; leave empty for anyone)
+              <input name="addr" spellcheck="false" placeholder="0x… or empty" /></label>
+            <button type="submit">Set keeper</button>
+          </form>
+          <div class="row wrap">
+            <button id="acceptOwnerBtn" type="button">Accept ownership (as new owner)</button>
+            <button id="cancelOwnerBtn" type="button">Cancel owner change</button>
+          </div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>Activity</h2>
+        <ol id="log" class="log"></ol>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
